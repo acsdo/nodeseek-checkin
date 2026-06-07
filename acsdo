@@ -1,0 +1,44 @@
+name: NodeSeek Daily Check-in
+
+on:
+  schedule:
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+jobs:
+  checkin:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Cache NodeSeek browser profile
+        uses: actions/cache@v4
+        with:
+          path: /tmp/nodeseek-browser-profile
+          key: nodeseek-profile-stable
+          restore-keys: |
+            nodeseek-profile-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Check-in
+        env:
+          NS_COOKIE: ${{ secrets.NS_COOKIE }}
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          NS_USER_DATA_DIR: '/tmp/nodeseek-browser-profile'
+        run: npx tsx checkin.ts
+
+      - name: Dump Browser Profile On Failure
+        if: failure()
+        run: |
+          ls -la /tmp/nodeseek-browser-profile || true
